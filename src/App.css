@@ -11,6 +11,8 @@ body {
   overflow-x: hidden;
 }
 
+
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -101,6 +103,13 @@ body {
   font-weight: 900;
   margin-bottom: 1rem;
   line-height: 1.2;
+}
+
+.hero-logo {
+  width: 200px;
+  height: 200px;
+  margin-bottom: 1rem;
+  border-radius: 100%;
 }
 
 .title-line-1, .title-line-2, .title-line-3 {

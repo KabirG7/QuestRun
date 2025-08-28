@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import css from './App.css';
+import logo from './logo.png';
 
 const App = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -170,6 +171,7 @@ const App = () => {
       <section className="hero">
         <div className="hero-content">
           <h1 className="hero-title">
+            <img src={logo} alt="RunQuest Logo" className="hero-logo" />
             <span className="title-line-1">Run Anywhere.</span>
             <span className="title-line-2">Earn <span className="gradient-text">Verified</span> Medals.</span>
             <span className="title-line-3">Join the Adventure.</span>
