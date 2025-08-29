@@ -2,84 +2,104 @@ import React, { useState, useEffect } from 'react';
 import css from './App.css';
 import logo from './logo.png';
 
+const MedalPage = ({ race, activity, distance, onClose }) => (
+  <section className="medal-page">
+    <div className="medal-content">
+      <h2>Congratulations!</h2>
+      <p>You earned a {race.medal} medal for {race.name}!</p>
+      <p>Activity: {activity}</p>
+      <p>Distance: {distance}</p>
+      <div className="medal-display">
+        <div className="medal-design">{race.medal}</div>
+      </div>
+      <button className="btn-primary" onClick={onClose}>
+        Return to Races
+      </button>
+    </div>
+  </section>
+);
+
 const App = () => {
   const [scrollY, setScrollY] = useState(0);
   const [stravaUser, setStravaUser] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [medalsEarned, setMedalsEarned] = useState(0);
+  const [showMedalPage, setShowMedalPage] = useState(false); // New state for medal page
+  const [medalData, setMedalData] = useState(null); // Store medal page data
+
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  // Check for OAuth callback on component mount
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const scope = urlParams.get('scope');
-    if (code && !stravaUser) {
+
+    if (code && !stravaUser && !loading) {
       exchangeCodeForToken(code);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [stravaUser]);
+  }, [stravaUser, loading]);
+
   const exchangeCodeForToken = async (code) => {
     setLoading(true);
     setError(null);
-   
+
     try {
-      const clientId = "174613";
-      const clientSecret = "YOUR_CLIENT_SECRET"; // You'll need to add this
-     
-      const response = await fetch('https://www.strava.com/oauth/token', {
+      const response = await fetch('http://localhost:3001/api/strava/oauth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          client_id: clientId,
-          client_secret: clientSecret,
           code: code,
           grant_type: 'authorization_code',
         }),
       });
-      if (!response.ok) {
-        throw new Error('Failed to exchange code for token');
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Backend endpoint not responding with JSON. Make sure your backend server is running on port 3001.');
       }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to exchange code for token');
+      }
+
       const data = await response.json();
-     
-      // Store user data (in a real app, you'd want to store the access token securely)
-      const userData = {
-        id: data.athlete.id,
-        username: data.athlete.username,
-        firstname: data.athlete.firstname,
-        lastname: data.athlete.lastname,
-        profile: data.athlete.profile,
-        profile_medium: data.athlete.profile_medium,
-        city: data.athlete.city,
-        state: data.athlete.state,
-        country: data.athlete.country,
-        follower_count: data.athlete.follower_count,
-        friend_count: data.athlete.friend_count,
-        access_token: data.access_token
-      };
-     
-      setStravaUser(userData);
-     
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-     
+      setStravaUser(data.athlete);
+      setSessionId(data.session_id);
     } catch (err) {
-      setError('Failed to connect with Strava. Please try again.');
+      if (err.message.includes('fetch')) {
+        setError('Cannot connect to backend server. Make sure it\'s running on port 3001.');
+      } else if (err.message.includes('Backend endpoint not responding')) {
+        setError('Backend server is not responding correctly. Check server logs.');
+      } else if (err.message.includes('Invalid authorization code')) {
+        setError('Authorization expired. Please try connecting again.');
+      } else if (err.message.includes('Rate limit')) {
+        setError('Too many requests. Please wait a moment and try again.');
+      } else {
+        setError(err.message || 'Failed to connect with Strava. Please try again.');
+      }
       console.error('Strava OAuth error:', err);
     } finally {
       setLoading(false);
     }
   };
+
   const races = [
     {
       id: 1,
       name: "Himalayan Challenge",
       description: "Scale the world's highest peaks in this legendary 50km virtual journey through the Himalayas.",
-      distance: "50km",
+      distance: 50,
       duration: "30 days",
       difficulty: "EPIC",
       medal: "🏔️",
@@ -90,7 +110,7 @@ const App = () => {
       id: 2,
       name: "Amazon Explorer",
       description: "Journey through the world's largest rainforest in this 35km adventure of discovery.",
-      distance: "35km",
+      distance: 35,
       duration: "21 days",
       difficulty: "LEGENDARY",
       medal: "🌿",
@@ -101,7 +121,7 @@ const App = () => {
       id: 3,
       name: "Sahara Crossing",
       description: "Cross the vast Sahara desert in this ultimate 100km endurance challenge.",
-      distance: "100km",
+      distance: 10,
       duration: "60 days",
       difficulty: "MYTHIC",
       medal: "🏜️",
@@ -112,7 +132,7 @@ const App = () => {
       id: 4,
       name: "Arctic Adventure",
       description: "Brave the frozen wilderness in this chilling ultimate 25km polar expedition.",
-      distance: "25km",
+      distance: 25,
       duration: "15 days",
       difficulty: "RARE",
       medal: "❄️",
@@ -120,18 +140,104 @@ const App = () => {
       rarity: "rare"
     },
   ];
+
   const handleConnect = () => {
     const clientId = "174613";
-    const redirectUri = window.location.origin;
+    const redirectUri = encodeURIComponent(window.location.origin);
     const responseType = "code";
-    const scope = "read,activity:read";
+    const scope = "read,activity:read_all";
+    
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${scope}`;
     window.location.href = authUrl;
   };
-  const handleDisconnect = () => {
+
+  const handleDisconnect = async () => {
+    try {
+      if (sessionId) {
+        await fetch('http://localhost:3001/api/strava/disconnect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+      }
+    } catch (err) {
+      console.log('Disconnect cleanup failed:', err);
+    }
+    
     setStravaUser(null);
+    setSessionId(null);
     setError(null);
+    setActivities([]);
+    setMedalsEarned(0);
+    setShowMedalPage(false);
   };
+
+  const fetchUserActivities = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3001/api/strava/activities?sessionId=${sessionId}&per_page=10`);
+      if (response.ok) {
+        const activitiesData = await response.json();
+        setActivities(activitiesData);
+        console.log('User activities:', activitiesData);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to load activities');
+      }
+    } catch (err) {
+      console.error('Failed to fetch activities:', err);
+      setError('Failed to load activities. Please try again.');
+    }
+  };
+
+  const handleSubmitActivity = (race) => {
+    if (!sessionId) {
+      setError('Please connect to Strava first');
+      return;
+    }
+
+    if (activities.length === 0) {
+      setError('Please load activities first');
+      return;
+    }
+
+    const activityId = prompt(
+      `Select an activity ID for ${race.name} (from your recent activities):\n\n` +
+      activities.map(act => `${act.id}: ${act.name} (${(act.distance / 1000).toFixed(2)}km)`).join('\n')
+    );
+
+    if (!activityId) return;
+
+    const selectedActivity = activities.find(act => act.id === parseInt(activityId));
+    if (!selectedActivity) {
+      setError('Invalid activity ID selected');
+      return;
+    }
+
+    const activityDistanceKm = selectedActivity.distance / 1000;
+    if (activityDistanceKm < race.distance) {
+      setError(`Activity distance (${activityDistanceKm.toFixed(2)}km) is less than required (${race.distance}km)`);
+      return;
+    }
+
+    // Award medal locally
+    setMedalsEarned(prev => prev + 1);
+    setMedalData({
+      race,
+      activity: selectedActivity.name,
+      distance: `${activityDistanceKm.toFixed(2)}km`
+    });
+    setShowMedalPage(true);
+  };
+
+  const closeMedalPage = () => {
+    setShowMedalPage(false);
+    setMedalData(null);
+  };
+
   return (
     <div className="app">
       {/* Navigation */}
@@ -167,6 +273,7 @@ const App = () => {
           </ul>
         </div>
       </nav>
+
       {/* Hero Section */}
       <section className="hero">
         <div className="hero-content">
@@ -197,6 +304,7 @@ const App = () => {
           </div>
         </div>
       </section>
+
       {/* Strava User Profile Section */}
       {stravaUser && (
         <section className="strava-profile">
@@ -242,7 +350,7 @@ const App = () => {
                       <div className="stat-label">Following</div>
                     </div>
                     <div className="stat-card">
-                      <div className="stat-number">0</div>
+                      <div className="stat-number">{medalsEarned}</div>
                       <div className="stat-label">RunQuest Medals</div>
                     </div>
                   </div>
@@ -251,6 +359,9 @@ const App = () => {
                     <button className="btn-primary">Start First Challenge</button>
                     <button className="btn-secondary" onClick={handleDisconnect}>
                       Disconnect Strava
+                    </button>
+                    <button className="btn-secondary" onClick={fetchUserActivities}>
+                      Load Activities
                     </button>
                   </div>
                 </div>
@@ -262,13 +373,14 @@ const App = () => {
                   <span>Connected to Strava</span>
                 </div>
                 <p className="status-description">
-                  Your runs will automatically sync with RunQuest. Start any virtual race to begin earning medals!
+                  Your runs will automatically sync with RunQuest. Submit an activity to earn medals!
                 </p>
               </div>
             </div>
           </div>
         </section>
       )}
+
       {/* Error Display */}
       {error && (
         <section className="error-section">
@@ -283,6 +395,17 @@ const App = () => {
           </div>
         </section>
       )}
+
+      {/* Medal Page */}
+      {showMedalPage && medalData && (
+        <MedalPage 
+          race={medalData.race}
+          activity={medalData.activity}
+          distance={medalData.distance}
+          onClose={closeMedalPage}
+        />
+      )}
+
       {/* About Section */}
       <section id="about" className="about">
         <div className="container">
@@ -320,7 +443,6 @@ const App = () => {
             </div>
             <div className="about-visual">
               <div className="medal-showcase">
-             
               </div>
               <div className="verification-badge">
                 <div className="badge-icon">✓</div>
@@ -330,6 +452,7 @@ const App = () => {
           </div>
         </div>
       </section>
+
       {/* Features Section */}
       <section id="features" className="features">
         <div className="container">
@@ -368,11 +491,12 @@ const App = () => {
           </div>
         </div>
       </section>
+
       {/* Races Section */}
       <section id="races" className="races">
         <div className="container">
           <h2 className="section-title">Virtual Race Collection</h2>
-          <p className="section-subtitle">Choose your adventure and start earning magnificent medals</p>
+          <p className="section-subtitle">Choose your adventure and submit an activity to earn a medal</p>
          
           <div className="races-grid">
             {races.map((race) => (
@@ -390,10 +514,16 @@ const App = () => {
                     <h3>{race.name}</h3>
                     <p>{race.description}</p>
                     <div className="race-stats">
-                      <span className="stat">{race.distance}</span>
+                      <span className="stat">{race.distance}km</span>
                       <span className="stat">{race.duration}</span>
                     </div>
-                    <button className="race-btn">Start Challenge</button>
+                    <button 
+                      className="race-btn" 
+                      onClick={() => handleSubmitActivity(race)}
+                      disabled={loading || activities.length === 0}
+                    >
+                      {loading ? 'Loading...' : 'Submit Activity'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -401,6 +531,7 @@ const App = () => {
           </div>
         </div>
       </section>
+
       {/* Footer CTA */}
       <section className="footer-cta">
         <div className="container">
@@ -412,4 +543,5 @@ const App = () => {
     </div>
   );
 };
+
 export default App;
