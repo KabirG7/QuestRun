@@ -1216,3 +1216,119 @@ html {
 .medal-content .btn-primary:hover {
   background: #27ae60;
 }
+
+/* Medal Page Styles - Scoped to avoid conflicts */
+.medal-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.medal-page .medal-container {
+  max-width: 500px;
+  width: 90%;
+}
+
+.medal-page .medal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 3rem;
+  text-align: center;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+}
+
+.medal-page .medal-title {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #293241;
+  margin-bottom: 1rem;
+}
+
+.medal-page .medal-message {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 2rem;
+  font-weight: 500;
+}
+
+.medal-page .medal-display {
+  margin: 2rem 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.medal-page .medal-icon {
+  font-size: 6rem;
+  color: #ffd700;
+}
+
+.medal-page .medal-details {
+  font-size: 1.1rem;
+  color: #555;
+  margin: 1rem 0;
+  font-weight: 600;
+}
+
+.medal-page .medal-button {
+  background: linear-gradient(45deg, #ee6c4d, #3d5a80);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 25px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.medal-page .medal-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(238, 108, 77, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .medal-page .medal-content {
+    padding: 2rem;
+  }
+  
+  .medal-page .medal-title {
+    font-size: 1.8rem;
+  }
+  
+  .medal-page .medal-icon {
+    font-size: 4.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .medal-page .medal-content {
+    padding: 1.5rem;
+  }
+  
+  .medal-page .medal-title {
+    font-size: 1.6rem;
+  }
+  
+  .medal-page .medal-message {
+    font-size: 1.1rem;
+  }
+  
+  .medal-page .medal-icon {
+    font-size: 4rem;
+  }
+  
+  .medal-page .medal-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+}

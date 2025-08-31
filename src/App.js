@@ -4,17 +4,21 @@ import logo from './logo.png';
 
 const MedalPage = ({ race, activity, distance, onClose }) => (
   <section className="medal-page">
-    <div className="medal-content">
-      <h2>Congratulations!</h2>
-      <p>You earned a {race.medal} medal for {race.name}!</p>
-      <p>Activity: {activity}</p>
-      <p>Distance: {distance}</p>
-      <div className="medal-display">
-        <div className="medal-design">{race.medal}</div>
+    <div className="medal-container">
+      <div className="medal-background"></div>
+      <div className="medal-content">
+        <h1 className="medal-title">Congratulations, Champion!</h1>
+        <p className="medal-message">You’ve conquered {race.name}!</p>
+        <div className="medal-display">
+          <div className="medal-icon">{race.medal}</div>
+          <div className="medal-glow"></div>
+        </div>
+        <p className="medal-details">Activity: {activity}</p>
+        <p className="medal-details">Distance: {distance}</p>
+        <button className="medal-button" onClick={onClose}>
+          Return to Your Adventures
+        </button>
       </div>
-      <button className="btn-primary" onClick={onClose}>
-        Return to Races
-      </button>
     </div>
   </section>
 );
@@ -27,8 +31,9 @@ const App = () => {
   const [error, setError] = useState(null);
   const [activities, setActivities] = useState([]);
   const [medalsEarned, setMedalsEarned] = useState(0);
-  const [showMedalPage, setShowMedalPage] = useState(false); // New state for medal page
-  const [medalData, setMedalData] = useState(null); // Store medal page data
+  const [showMedalPage, setShowMedalPage] = useState(false);
+  const [medalData, setMedalData] = useState(null);
+  const [completedRaces, setCompletedRaces] = useState(new Set()); // Track completed races by race.id
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -171,6 +176,7 @@ const App = () => {
     setError(null);
     setActivities([]);
     setMedalsEarned(0);
+    setCompletedRaces(new Set());
     setShowMedalPage(false);
   };
 
@@ -204,6 +210,11 @@ const App = () => {
       return;
     }
 
+    if (completedRaces.has(race.id)) {
+      setError('This race has already been completed!');
+      return;
+    }
+
     const activityId = prompt(
       `Select an activity ID for ${race.name} (from your recent activities):\n\n` +
       activities.map(act => `${act.id}: ${act.name} (${(act.distance / 1000).toFixed(2)}km)`).join('\n')
@@ -223,7 +234,8 @@ const App = () => {
       return;
     }
 
-    // Award medal locally
+    // Mark race as completed and award medal
+    setCompletedRaces(prev => new Set(prev).add(race.id));
     setMedalsEarned(prev => prev + 1);
     setMedalData({
       race,
@@ -500,7 +512,7 @@ const App = () => {
          
           <div className="races-grid">
             {races.map((race) => (
-              <div key={race.id} className={`race-card ${race.rarity}`}>
+              <div key={race.id} className={`race-card ${race.rarity} ${completedRaces.has(race.id) ? 'completed' : ''}`}>
                 <div className={`race-background ${race.background}`}></div>
                 <div className="race-content">
                   <div className="race-medal">
@@ -520,9 +532,9 @@ const App = () => {
                     <button 
                       className="race-btn" 
                       onClick={() => handleSubmitActivity(race)}
-                      disabled={loading || activities.length === 0}
+                      disabled={loading || activities.length === 0 || completedRaces.has(race.id)}
                     >
-                      {loading ? 'Loading...' : 'Submit Activity'}
+                      {loading ? 'Loading...' : completedRaces.has(race.id) ? 'Completed' : 'Submit Activity'}
                     </button>
                   </div>
                 </div>

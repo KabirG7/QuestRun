@@ -7,7 +7,7 @@ const PORT = 3001;
 
 // Configuration - REPLACE YOUR_CLIENT_SECRET with actual secret
 const STRAVA_CLIENT_ID = '174613';
-const STRAVA_CLIENT_SECRET = 'a9b0f16069b903e64f7d28b5035e514be55e6cc8'; // Get from https://www.strava.com/settings/api
+const STRAVA_CLIENT_SECRET = 'a6a452464fa1893136a87f12823412609a5f73e9'; // Get from https://www.strava.com/settings/api
 
 // Middleware
 app.use(cors());
