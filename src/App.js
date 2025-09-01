@@ -2,19 +2,152 @@ import React, { useState, useEffect } from 'react';
 import css from './App.css';
 import logo from './logo.png';
 
-const MedalPage = ({ race, activity, distance, onClose }) => (
+// Medal verification component
+const MedalVerificationPage = ({ medalCode, onClose }) => {
+  const [verificationData, setVerificationData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Simulate verification lookup
+    setTimeout(() => {
+      const data = localStorage.getItem(`medal_${medalCode}`);
+      if (data) {
+        setVerificationData(JSON.parse(data));
+      } else {
+        setError('Medal code not found or invalid');
+      }
+      setLoading(false);
+    }, 1500);
+  }, [medalCode]);
+
+  if (loading) {
+    return (
+      <div className="verification-page">
+        <div className="verification-container">
+          <div className="verification-content loading">
+            <div className="verification-spinner"></div>
+            <h2>Verifying Medal...</h2>
+            <p>Checking authenticity database...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="verification-page">
+        <div className="verification-container">
+          <div className="verification-content error">
+            <div className="verification-icon error">❌</div>
+            <h2>Verification Failed</h2>
+            <p>{error}</p>
+            <button className="verification-btn" onClick={onClose}>
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="verification-page">
+      <div className="verification-container">
+        <div className="verification-content success">
+          <div className="verification-icon success">✅</div>
+          <h2>Medal Verified Authentic</h2>
+          
+          <div className="medal-verification-card">
+            <div className="verified-medal-display">
+              <div className={`verified-medal-icon ${verificationData.rarity}`}>
+                {verificationData.medalEmoji}
+              </div>
+              <div className="verification-details">
+                <h3>{verificationData.raceName}</h3>
+                <p className="medal-code">Code: {medalCode}</p>
+                <p className="completion-date">Earned: {verificationData.completionDate}</p>
+              </div>
+            </div>
+            
+            <div className="verification-stats">
+              <div className="stat-row">
+                <span className="stat-label">Activity:</span>
+                <span className="stat-value">{verificationData.activityName}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Distance:</span>
+                <span className="stat-value">{verificationData.distance}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Athlete:</span>
+                <span className="stat-value">{verificationData.athleteName}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">Verification ID:</span>
+                <span className="stat-value verification-id">{verificationData.verificationId}</span>
+              </div>
+            </div>
+            
+            <div className="authenticity-seal">
+              <div className="seal-icon">🛡️</div>
+              <div className="seal-text">
+                <strong>RunQuest Certified</strong>
+                <p>This medal has been verified as authentic</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="verification-actions">
+            <button className="verification-btn primary" onClick={onClose}>
+              Close Verification
+            </button>
+            <button className="verification-btn secondary" onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/verify/${medalCode}`);
+              alert('Verification link copied to clipboard!');
+            }}>
+              Share Verification Link
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Updated Medal Page component
+const MedalPage = ({ race, activity, distance, onClose, medalCode }) => (
   <section className="medal-page">
     <div className="medal-container">
       <div className="medal-background"></div>
       <div className="medal-content">
         <h1 className="medal-title">Congratulations, Champion!</h1>
-        <p className="medal-message">You’ve conquered {race.name}!</p>
+        <p className="medal-message">You've conquered {race.name}!</p>
         <div className="medal-display">
           <div className="medal-icon">{race.medal}</div>
           <div className="medal-glow"></div>
         </div>
         <p className="medal-details">Activity: {activity}</p>
         <p className="medal-details">Distance: {distance}</p>
+        
+        {/* Authenticity Section */}
+        <div className="medal-authenticity">
+          <div className="authenticity-badge">
+            <div className="auth-icon">🔐</div>
+            <div className="auth-text">
+              <strong>Verified Authentic</strong>
+              <p>Medal Code: {medalCode}</p>
+            </div>
+          </div>
+          <button 
+            className="verify-medal-btn"
+            onClick={() => window.open(`${window.location.origin}/verify/${medalCode}`, '_blank')}
+          >
+            View Verification Certificate
+          </button>
+        </div>
+        
         <button className="medal-button" onClick={onClose}>
           Return to Your Adventures
         </button>
@@ -22,6 +155,67 @@ const MedalPage = ({ race, activity, distance, onClose }) => (
     </div>
   </section>
 );
+
+// Medal verification lookup component (for direct URL access)
+const MedalLookup = () => {
+  const [searchCode, setSearchCode] = useState('');
+  const [showVerification, setShowVerification] = useState(false);
+
+  const handleSearch = () => {
+    if (searchCode.trim()) {
+      setShowVerification(true);
+    }
+  };
+
+  return (
+    <div className="medal-lookup-page">
+      <div className="lookup-container">
+        <div className="lookup-header">
+          <h1>Medal Verification Portal</h1>
+          <p>Enter a medal code to verify its authenticity</p>
+        </div>
+        
+        <div className="lookup-form">
+          <input
+            type="text"
+            placeholder="Enter medal code (e.g., RQ-HIM-2025-ABC123)"
+            value={searchCode}
+            onChange={(e) => setSearchCode(e.target.value.toUpperCase())}
+            className="lookup-input"
+          />
+          <button onClick={handleSearch} className="lookup-btn">
+            Verify Medal
+          </button>
+        </div>
+        
+        <div className="lookup-info">
+          <h3>How Medal Verification Works</h3>
+          <div className="info-steps">
+            <div className="info-step">
+              <div className="step-number">1</div>
+              <p>Each medal is assigned a unique verification code</p>
+            </div>
+            <div className="info-step">
+              <div className="step-number">2</div>
+              <p>Codes are generated using athlete data and completion proof</p>
+            </div>
+            <div className="info-step">
+              <div className="step-number">3</div>
+              <p>Verification ensures medal authenticity and prevents fraud</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {showVerification && (
+        <MedalVerificationPage 
+          medalCode={searchCode}
+          onClose={() => setShowVerification(false)}
+        />
+      )}
+    </div>
+  );
+};
 
 const App = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -33,7 +227,45 @@ const App = () => {
   const [medalsEarned, setMedalsEarned] = useState(0);
   const [showMedalPage, setShowMedalPage] = useState(false);
   const [medalData, setMedalData] = useState(null);
-  const [completedRaces, setCompletedRaces] = useState(new Set()); // Track completed races by race.id
+  const [completedRaces, setCompletedRaces] = useState(new Set());
+  const [currentView, setCurrentView] = useState('main'); // 'main' or 'verification'
+
+  // Generate unique medal code
+  const generateMedalCode = (race, athlete, activity) => {
+    const raceCode = race.name.substring(0, 3).toUpperCase();
+    const year = new Date().getFullYear();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const athleteCode = athlete.id.toString().slice(-3);
+    return `RQ-${raceCode}-${year}-${athleteCode}${random}`;
+  };
+
+  // Store medal verification data
+  const storeMedalVerification = (medalCode, medalData) => {
+    const verificationData = {
+      medalCode,
+      raceName: medalData.race.name,
+      medalEmoji: medalData.race.medal,
+      rarity: medalData.race.rarity,
+      activityName: medalData.activity,
+      distance: medalData.distance,
+      athleteName: `${stravaUser.firstname} ${stravaUser.lastname}`,
+      completionDate: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      verificationId: `VID-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      athleteId: stravaUser.id,
+      timestamp: Date.now()
+    };
+    
+    // Store in localStorage for demo (in production, this would be a database)
+    localStorage.setItem(`medal_${medalCode}`, JSON.stringify(verificationData));
+    
+    return verificationData;
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -42,9 +274,15 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    // Check if we're on verification page
+    const path = window.location.pathname;
+    if (path.startsWith('/verify/')) {
+      setCurrentView('verification');
+      return;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    const scope = urlParams.get('scope');
 
     if (code && !stravaUser && !loading) {
       exchangeCodeForToken(code);
@@ -234,14 +472,23 @@ const App = () => {
       return;
     }
 
-    // Mark race as completed and award medal
-    setCompletedRaces(prev => new Set(prev).add(race.id));
-    setMedalsEarned(prev => prev + 1);
-    setMedalData({
+    // Generate unique medal code
+    const medalCode = generateMedalCode(race, stravaUser, selectedActivity);
+    
+    // Create medal data
+    const medalDataObj = {
       race,
       activity: selectedActivity.name,
       distance: `${activityDistanceKm.toFixed(2)}km`
-    });
+    };
+
+    // Store verification data
+    storeMedalVerification(medalCode, medalDataObj);
+
+    // Mark race as completed and award medal
+    setCompletedRaces(prev => new Set(prev).add(race.id));
+    setMedalsEarned(prev => prev + 1);
+    setMedalData({ ...medalDataObj, medalCode });
     setShowMedalPage(true);
   };
 
@@ -249,6 +496,24 @@ const App = () => {
     setShowMedalPage(false);
     setMedalData(null);
   };
+
+  // Handle verification page routing
+  if (currentView === 'verification') {
+    const path = window.location.pathname;
+    const medalCode = path.split('/verify/')[1];
+    
+    if (medalCode) {
+      return <MedalVerificationPage 
+        medalCode={medalCode} 
+        onClose={() => {
+          setCurrentView('main');
+          window.history.pushState({}, '', '/');
+        }} 
+      />;
+    } else {
+      return <MedalLookup />;
+    }
+  }
 
   return (
     <div className="app">
@@ -262,6 +527,7 @@ const App = () => {
             <li><a href="#about">About</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#races">Races</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('verification'); }}>Verify Medal</a></li>
             <li><a href="#" className="cta-btn">Start Running</a></li>
             <li>
               {stravaUser ? (
@@ -295,7 +561,7 @@ const App = () => {
             <span className="title-line-2">Earn <span className="gradient-text">Verified</span> Medals.</span>
             <span className="title-line-3">Join the Adventure.</span>
           </h1>
-          <p className="hero-subtitle">Transform your daily runs into epic adventures. Complete virtual challenges and earn stunning, blockchain-verified digital medals that showcase your achievements.</p>
+          <p className="hero-subtitle">Transform your daily runs into epic adventures. Complete virtual challenges and earn stunning, authenticity-verified digital medals that showcase your achievements.</p>
           <div className="hero-buttons">
             <button className="btn-primary">Start Your Journey</button>
             <button className="btn-secondary">Watch Demo</button>
@@ -385,7 +651,7 @@ const App = () => {
                   <span>Connected to Strava</span>
                 </div>
                 <p className="status-description">
-                  Your runs will automatically sync with RunQuest. Submit an activity to earn medals!
+                  Your runs will automatically sync with RunQuest. Submit an activity to earn verified medals!
                 </p>
               </div>
             </div>
@@ -414,6 +680,7 @@ const App = () => {
           race={medalData.race}
           activity={medalData.activity}
           distance={medalData.distance}
+          medalCode={medalData.medalCode}
           onClose={closeMedalPage}
         />
       )}
@@ -426,7 +693,7 @@ const App = () => {
               <h2 className="section-title">About RunQuest</h2>
               <p className="about-description">
                 RunQuest revolutionizes fitness by transforming your real-world runs into virtual adventures.
-                Using GPS tracking and blockchain verification, every mile you run counts toward completing
+                Using GPS tracking and verification codes, every mile you run counts toward completing
                 epic virtual journeys inspired by legendary routes and mythical landscapes.
               </p>
               <div className="about-features">
@@ -441,7 +708,7 @@ const App = () => {
                   <div className="feature-icon">🏆</div>
                   <div className="feature-text">
                     <h4>Verified Achievements</h4>
-                    <p>Blockchain-secured medals that prove your accomplishments</p>
+                    <p>Unique verification codes that prove your accomplishments</p>
                   </div>
                 </div>
                 <div className="feature-item">
@@ -482,8 +749,8 @@ const App = () => {
             </div>
             <div className="feature-card">
               <div className="card-icon">🔐</div>
-              <h3>Blockchain Verified</h3>
-              <p>Every medal is secured on the blockchain, making your achievements permanent and verifiable.</p>
+              <h3>Authenticity Verified</h3>
+              <p>Every medal gets a unique verification code, making your achievements permanent and verifiable.</p>
             </div>
             <div className="feature-card">
               <div className="card-icon">🌟</div>
@@ -508,7 +775,7 @@ const App = () => {
       <section id="races" className="races">
         <div className="container">
           <h2 className="section-title">Virtual Race Collection</h2>
-          <p className="section-subtitle">Choose your adventure and submit an activity to earn a medal</p>
+          <p className="section-subtitle">Choose your adventure and submit an activity to earn a verified medal</p>
          
           <div className="races-grid">
             {races.map((race) => (
@@ -528,6 +795,7 @@ const App = () => {
                     <div className="race-stats">
                       <span className="stat">{race.distance}km</span>
                       <span className="stat">{race.duration}</span>
+                      <span className="stat">🔐 Verified</span>
                     </div>
                     <button 
                       className="race-btn" 

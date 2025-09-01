@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3001;
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // In-memory storage for demo
 const userSessions = new Map();
+const medalVerifications = new Map(); // Store medal verification data
 
 // Validate configuration
 if (!STRAVA_CLIENT_SECRET || STRAVA_CLIENT_SECRET === 'YOUR_CLIENT_SECRET') {
@@ -22,6 +24,23 @@ if (!STRAVA_CLIENT_SECRET || STRAVA_CLIENT_SECRET === 'YOUR_CLIENT_SECRET') {
   console.error('Get it from: https://www.strava.com/settings/api');
   process.exit(1);
 }
+
+// Generate unique medal code
+const generateMedalCode = (raceData, athleteData, activityData) => {
+  const raceCode = raceData.name.substring(0, 3).toUpperCase();
+  const year = new Date().getFullYear();
+  const athleteCode = athleteData.id.toString().slice(-3);
+  const timestamp = Date.now().toString().slice(-6);
+  const random = crypto.randomBytes(3).toString('hex').toUpperCase();
+  return `RQ-${raceCode}-${year}-${athleteCode}${timestamp}${random}`;
+};
+
+// Generate verification ID for authenticity
+const generateVerificationId = () => {
+  const timestamp = Date.now();
+  const random = crypto.randomBytes(4).toString('hex').toUpperCase();
+  return `VID-${timestamp}-${random}`;
+};
 
 // OAuth token exchange endpoint
 app.post('/api/strava/oauth', async (req, res) => {
@@ -132,7 +151,7 @@ app.post('/api/strava/disconnect', async (req, res) => {
   }
 });
 
-// Get activities endpoint - using query parameter instead of route parameter
+// Get activities endpoint
 app.get('/api/strava/activities', async (req, res) => {
   try {
     const { sessionId, page = 1, per_page = 30 } = req.query;
@@ -170,7 +189,7 @@ app.get('/api/strava/activities', async (req, res) => {
   }
 });
 
-// Get athlete profile endpoint - using query parameter
+// Get athlete profile endpoint
 app.get('/api/strava/athlete', async (req, res) => {
   try {
     const { sessionId } = req.query;
@@ -202,6 +221,154 @@ app.get('/api/strava/athlete', async (req, res) => {
   } catch (error) {
     console.error('Athlete fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch athlete data' });
+  }
+});
+
+// Medal creation and verification endpoint
+app.post('/api/medals/create', async (req, res) => {
+  try {
+    const { sessionId, raceData, activityData, completionData } = req.body;
+    
+    if (!sessionId || !userSessions.has(sessionId)) {
+      return res.status(401).json({ error: 'Session not found' });
+    }
+    
+    const sessionData = userSessions.get(sessionId);
+    const athlete = sessionData.athlete;
+    
+    // Generate unique medal code
+    const medalCode = generateMedalCode(raceData, athlete, activityData);
+    const verificationId = generateVerificationId();
+    
+    // Create medal verification data
+    const medalVerification = {
+      medalCode,
+      verificationId,
+      raceName: raceData.name,
+      medalEmoji: raceData.medal,
+      rarity: raceData.rarity,
+      difficulty: raceData.difficulty,
+      requiredDistance: raceData.distance,
+      activityName: activityData.name,
+      activityDistance: completionData.distance,
+      athleteId: athlete.id,
+      athleteName: `${athlete.firstname} ${athlete.lastname}`,
+      athleteUsername: athlete.username,
+      completionDate: new Date().toISOString(),
+      timestamp: Date.now(),
+      verified: true,
+      // Add cryptographic hash for extra security
+      hash: crypto.createHash('sha256')
+        .update(`${medalCode}${athlete.id}${activityData.id}${Date.now()}`)
+        .digest('hex')
+    };
+    
+    // Store verification data
+    medalVerifications.set(medalCode, medalVerification);
+    
+    console.log('Medal created:', medalCode, 'for athlete:', athlete.firstname);
+    
+    res.json({
+      success: true,
+      medalCode,
+      verificationId,
+      medal: medalVerification
+    });
+    
+  } catch (error) {
+    console.error('Medal creation error:', error);
+    res.status(500).json({ error: 'Failed to create medal verification' });
+  }
+});
+
+// Medal verification lookup endpoint
+app.get('/api/medals/verify/:medalCode', async (req, res) => {
+  try {
+    const { medalCode } = req.params;
+    
+    if (!medalCode) {
+      return res.status(400).json({ error: 'Medal code is required' });
+    }
+    
+    const verification = medalVerifications.get(medalCode.toUpperCase());
+    
+    if (!verification) {
+      return res.status(404).json({ 
+        error: 'Medal not found',
+        message: 'This medal code does not exist in our verification database'
+      });
+    }
+    
+    // Return verification data
+    res.json({
+      verified: true,
+      medal: verification,
+      message: 'Medal successfully verified as authentic'
+    });
+    
+  } catch (error) {
+    console.error('Medal verification error:', error);
+    res.status(500).json({ error: 'Failed to verify medal' });
+  }
+});
+
+// Get all medals for an athlete
+app.get('/api/medals/athlete/:athleteId', async (req, res) => {
+  try {
+    const { athleteId } = req.params;
+    
+    const athleteMedals = Array.from(medalVerifications.values())
+      .filter(medal => medal.athleteId.toString() === athleteId.toString())
+      .sort((a, b) => b.timestamp - a.timestamp); // Most recent first
+    
+    res.json({
+      success: true,
+      medals: athleteMedals,
+      count: athleteMedals.length
+    });
+    
+  } catch (error) {
+    console.error('Athlete medals fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch athlete medals' });
+  }
+});
+
+// Medal statistics endpoint
+app.get('/api/medals/stats', async (req, res) => {
+  try {
+    const allMedals = Array.from(medalVerifications.values());
+    
+    const stats = {
+      totalMedals: allMedals.length,
+      medalsByRarity: allMedals.reduce((acc, medal) => {
+        acc[medal.rarity] = (acc[medal.rarity] || 0) + 1;
+        return acc;
+      }, {}),
+      medalsByRace: allMedals.reduce((acc, medal) => {
+        acc[medal.raceName] = (acc[medal.raceName] || 0) + 1;
+        return acc;
+      }, {}),
+      uniqueAthletes: new Set(allMedals.map(medal => medal.athleteId)).size,
+      recentMedals: allMedals
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 10)
+        .map(medal => ({
+          medalCode: medal.medalCode,
+          raceName: medal.raceName,
+          athleteName: medal.athleteName,
+          completionDate: medal.completionDate,
+          rarity: medal.rarity
+        }))
+    };
+    
+    res.json({
+      success: true,
+      stats
+    });
+    
+  } catch (error) {
+    console.error('Medal stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch medal statistics' });
   }
 });
 
